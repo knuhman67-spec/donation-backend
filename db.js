@@ -6,13 +6,17 @@ const db = mysql.createConnection({
   password: process.env.DB_PASSWORD || 'root',
   database: process.env.DB_NAME || 'donation_manager',
   port: Number(process.env.DB_PORT || 3306),
+  ssl:
+    process.env.DB_SSL === 'true'
+      ? { rejectUnauthorized: false }
+      : undefined,
 });
 
 db.connect((err) => {
   if (err) {
-    console.log('DB ERROR:', err);
+    console.error('Database connection failed:', err.message);
   } else {
-    console.log('CONNECTED TO DB:', process.env.DB_NAME || 'donation_manager');
+    console.log('Connected to MySQL database');
   }
 });
 
