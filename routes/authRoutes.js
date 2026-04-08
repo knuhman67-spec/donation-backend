@@ -22,24 +22,24 @@ router.get('/test-signup', (req, res) => {
 router.post('/login', (req, res) => {
   console.log('LOGIN HIT:', req.body);
 
-  const email = String(req.body.email || '').trim();
+  const identifier = String(req.body.identifier || '').trim();
   const password = String(req.body.password || '').trim();
 
-  if (!email || !password) {
+  if (!identifier || !password) {
     return res.status(400).json({
       success: false,
-      message: 'Email and password are required',
+      message: 'Email/Phone and password are required',
     });
   }
 
   const sql = `
-    SELECT id, name, email, password, role, member_id
+    SELECT id, name, email, phone, password, role, member_id
     FROM users
-    WHERE TRIM(email) = ?
+    WHERE TRIM(email) = ? OR TRIM(phone) = ?
     LIMIT 1
   `;
 
-  db.query(sql, [email], async (err, results) => {
+  db.query(sql, [identifier, identifier], async (err, results) => {
     if (err) {
       console.log('DB ERROR:', err);
       return res.status(500).json({
@@ -50,10 +50,10 @@ router.post('/login', (req, res) => {
     }
 
     if (results.length === 0) {
-      console.log('USER NOT FOUND FOR EMAIL:', email);
+      console.log('USER NOT FOUND FOR IDENTIFIER:', identifier);
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password',
+        message: 'Invalid email/phone or password',
       });
     }
 
@@ -63,6 +63,7 @@ router.post('/login', (req, res) => {
     console.log('DB USER:', {
       id: user.id,
       email: user.email,
+      phone: user.phone,
       role: user.role,
       member_id: user.member_id,
     });
@@ -85,7 +86,7 @@ router.post('/login', (req, res) => {
       if (!isMatch) {
         return res.status(401).json({
           success: false,
-          message: 'Invalid email or password',
+          message: 'Invalid email/phone or password',
         });
       }
 
@@ -93,6 +94,7 @@ router.post('/login', (req, res) => {
         {
           id: user.id,
           email: String(user.email || '').trim(),
+          phone: String(user.phone || '').trim(),
           role: user.role,
           member_id: user.member_id || null,
         },
@@ -108,6 +110,7 @@ router.post('/login', (req, res) => {
           id: user.id,
           name: user.name,
           email: String(user.email || '').trim(),
+          phone: String(user.phone || '').trim(),
           role: user.role,
           member_id: user.member_id || null,
         },
