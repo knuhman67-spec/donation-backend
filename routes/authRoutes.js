@@ -28,7 +28,7 @@ router.post('/login', (req, res) => {
   if (!identifier || !password) {
     return res.status(400).json({
       success: false,
-      message: 'Email/Phone and password are required',
+      message: 'NEW LOGIN ROUTE ACTIVE',
     });
   }
 
@@ -124,89 +124,6 @@ router.post('/login', (req, res) => {
       });
     }
   });
-});
-
-/* ---------------- SIGNUP ---------------- */
-
-router.post('/signup', async (req, res) => {
-  console.log('SIGNUP ROUTE HIT');
-
-  try {
-    const name = String(req.body.name || '').trim();
-    const email = String(req.body.email || '').trim();
-    const password = String(req.body.password || '').trim();
-
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name, email and password are required',
-      });
-    }
-
-    const checkSql = 'SELECT id FROM users WHERE TRIM(email) = ?';
-
-    db.query(checkSql, [email], async (checkErr, checkResult) => {
-      if (checkErr) {
-        console.log('SIGNUP CHECK ERROR:', checkErr);
-        return res.status(500).json({
-          success: false,
-          message: 'Database error',
-          error: checkErr.message,
-        });
-      }
-
-      if (checkResult.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Email already registered',
-        });
-      }
-
-      try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const insertSql = `
-          INSERT INTO users (name, email, password, role, member_id)
-          VALUES (?, ?, ?, ?, ?)
-        `;
-
-        db.query(
-          insertSql,
-          [name, email, hashedPassword, 'member', null],
-          (insertErr, result) => {
-            if (insertErr) {
-              console.log('SIGNUP INSERT ERROR:', insertErr);
-              return res.status(500).json({
-                success: false,
-                message: 'Failed to register user',
-                error: insertErr.message,
-              });
-            }
-
-            return res.json({
-              success: true,
-              message: 'User registered successfully',
-              userId: result.insertId,
-            });
-          }
-        );
-      } catch (hashErr) {
-        console.log('BCRYPT HASH ERROR:', hashErr);
-        return res.status(500).json({
-          success: false,
-          message: 'Password hashing failed',
-          error: hashErr.toString(),
-        });
-      }
-    });
-  } catch (e) {
-    console.log('SIGNUP SERVER ERROR:', e);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: e.toString(),
-    });
-  }
 });
 
 module.exports = router;
