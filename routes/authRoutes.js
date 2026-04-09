@@ -25,6 +25,9 @@ router.post('/login', (req, res) => {
   const identifier = String(req.body.identifier || '').trim();
   const password = String(req.body.password || '').trim();
 
+  console.log("IDENTIFIER RECEIVED:", identifier);
+  console.log("PASSWORD RECEIVED:", password);
+
   if (!identifier || !password) {
     return res.status(400).json({
       success: false,
