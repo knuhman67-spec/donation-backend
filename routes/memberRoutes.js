@@ -47,17 +47,17 @@ router.get('/:id', (req, res) => {
   const memberId = req.params.id;
 
   const memberSql = `
-  SELECT 
-    m.*,
-    o.name AS organization_name,
-    o.type AS organization_type,
-    o.upi_id,
-    o.qr_image,
-    o.payment_note
-  FROM members m
-  JOIN organizations o ON o.id = m.organization_id
-  WHERE m.id = ?
-`;
+    SELECT 
+      m.*,
+      o.name AS organization_name,
+      o.type AS organization_type,
+      o.upi_id,
+      o.qr_image,
+      o.payment_note
+    FROM members m
+    JOIN organizations o ON o.id = m.organization_id
+    WHERE m.id = ?
+  `;
 
   const paymentSql = `
     SELECT *
@@ -118,6 +118,7 @@ router.post('/', async (req, res) => {
       profile_image,
       create_login,
       login_email,
+      login_phone,
       login_password,
     } = req.body;
 
@@ -179,65 +180,85 @@ router.post('/', async (req, res) => {
         console.log('create_login:', create_login, typeof create_login);
         console.log('shouldCreateLogin:', shouldCreateLogin);
 
-        if (shouldCreateLogin && login_email && login_password) {
-          const checkUserSql = 'SELECT id FROM users WHERE email = ? LIMIT 1';
+        if (
+          shouldCreateLogin &&
+          (login_email || login_phone) &&
+          login_password
+        ) {
+          const checkUserSql = `
+            SELECT id
+            FROM users
+            WHERE email = ? OR phone = ?
+            LIMIT 1
+          `;
 
-          db.query(checkUserSql, [login_email], async (checkErr, checkResults) => {
-            if (checkErr) {
-              console.log('USER CHECK ERROR:', checkErr);
-              return res.status(500).json({
-                success: false,
-                message: 'Failed to check login email',
-                error: checkErr.message,
-              });
-            }
+          db.query(
+            checkUserSql,
+            [login_email || null, login_phone || null],
+            async (checkErr, checkResults) => {
+              if (checkErr) {
+                console.log('USER CHECK ERROR:', checkErr);
+                return res.status(500).json({
+                  success: false,
+                  message: 'Failed to check login user',
+                  error: checkErr.message,
+                });
+              }
 
-            if (checkResults.length > 0) {
-              return res.status(400).json({
-                success: false,
-                message: 'Login email already exists',
-              });
-            }
+              if (checkResults.length > 0) {
+                return res.status(400).json({
+                  success: false,
+                  message: 'Login email or phone already exists',
+                });
+              }
 
-            try {
-              const hashedPassword = await bcrypt.hash(login_password, 10);
+              try {
+                const hashedPassword = await bcrypt.hash(login_password, 10);
 
-              const insertUserSql = `
-                INSERT INTO users (name, email, password, role, member_id)
-                VALUES (?, ?, ?, ?, ?)
-              `;
+                const insertUserSql = `
+                  INSERT INTO users (name, email, phone, password, role, member_id)
+                  VALUES (?, ?, ?, ?, ?, ?)
+                `;
 
-              db.query(
-                insertUserSql,
-                [full_name, login_email, hashedPassword, 'member', memberId],
-                (userErr, userResult) => {
-                  if (userErr) {
-                    console.log('USER INSERT ERROR:', userErr);
-                    return res.status(500).json({
-                      success: false,
-                      message: 'Member saved, but login creation failed',
-                      error: userErr.message,
+                db.query(
+                  insertUserSql,
+                  [
+                    full_name,
+                    login_email || null,
+                    login_phone || null,
+                    hashedPassword,
+                    'member',
+                    memberId,
+                  ],
+                  (userErr, userResult) => {
+                    if (userErr) {
+                      console.log('USER INSERT ERROR:', userErr);
+                      return res.status(500).json({
+                        success: false,
+                        message: 'Member saved, but login creation failed',
+                        error: userErr.message,
+                      });
+                    }
+
+                    console.log('USER CREATED:', userResult.insertId);
+
+                    return res.json({
+                      success: true,
+                      message: 'Member and login account created successfully',
+                      member_id: memberId,
                     });
                   }
-
-                  console.log('USER CREATED:', userResult.insertId);
-
-                  return res.json({
-                    success: true,
-                    message: 'Member and login account created successfully',
-                    member_id: memberId,
-                  });
-                }
-              );
-            } catch (hashErr) {
-              console.log('HASH ERROR:', hashErr);
-              return res.status(500).json({
-                success: false,
-                message: 'Password hashing failed',
-                error: hashErr.toString(),
-              });
+                );
+              } catch (hashErr) {
+                console.log('HASH ERROR:', hashErr);
+                return res.status(500).json({
+                  success: false,
+                  message: 'Password hashing failed',
+                  error: hashErr.toString(),
+                });
+              }
             }
-          });
+          );
 
           return;
         }
